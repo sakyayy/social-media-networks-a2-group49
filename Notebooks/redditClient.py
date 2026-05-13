@@ -9,7 +9,7 @@ try:
         clientId = ""
         clientSecret = ""
         password = ""
-        userName = ""
+        userName = "Sweet-Wall-7975"
         userAgents = 'client for SNAM2026'
 
         redditClient = praw.Reddit(client_id = clientId,
