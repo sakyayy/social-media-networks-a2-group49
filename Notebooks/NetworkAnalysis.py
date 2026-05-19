@@ -106,8 +106,34 @@ def calcNetworkStats(replyGraph):
         "avg_clusterring": avg_clusterring
     }
 
-    return stats
+    # write into graph 
+    nx.write_graphml(replyGraph, "replyGraph.graphml")
 
+def calcCentrality(replyGraph):
+
+    # in and ouit degree centrality
+    in_degree_cent = nx.in_degree_centrality(replyGraph)
+    out_degree_cent = nx.out_degree_centrality(replyGraph)
+
+    # betweenness
+    betweenness_centrality = nx.betweenness_centrality(replyGraph)
+
+    # eigen vector 
+    eigen_vector_cent = nx.eigenvector_centrality_numpy(replyGraph)
+
+    # katz centrality
+    # added base value of 1 
+    katz_centrality = nx.katz_centrality_numpy(replyGraph, beta=1.0)
+
+    centrality_data = {
+        "in_degree_cent": in_degree_cent,
+        "out_degree_cent": out_degree_cent,
+        "betweenness_centrality": betweenness_centrality,
+        "eigen_vector_cent": eigen_vector_cent,
+        "katz_centrality": katz_centrality
+    }
+
+    return centrality_data
 
 
 
