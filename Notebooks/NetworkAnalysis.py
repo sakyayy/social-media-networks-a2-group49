@@ -8,9 +8,11 @@ def loadData():
 
 def cleanNetworkData(df):
     # removing deleted or null rows of data 
-    df = df.dropna(subset=["author", "comment_id", "parent_id", "body", "post_id"])
+    df = df.dropna(subset=["author", "comment_id", "parent_id", "body", "post_id", "parent_author"])
     df = df[df["author"] != "[deleted]"]
     df = df[df["author"] != "[removed]"]
+
+    df = df[df["parent_author"] != "[deleted]"]
 
     return df
 
@@ -61,7 +63,7 @@ def buildNetwork(df):
     
     return replyGraph
 
-def calcNetworkStats(replyGraph, df):
+def calcNetworkStats(replyGraph):
     
     # getting graph stats
     num_nodes = replyGraph.number_of_nodes()
@@ -83,10 +85,30 @@ def calcNetworkStats(replyGraph, df):
     else:
         largest_wcc_size = 0
 
-    reciprocity = nx.reciprocity(replyGraph);
+    reciprocity = nx.reciprocity(replyGraph)
     transitivity = nx.transitivity(replyGraph)
 
+    # needed to get avg clusterring
     undir_replyGraph = replyGraph.to_undirected()
-    # avg_clusterring = 
+    avg_clusterring = nx.average_clustering(undir_replyGraph)
+
+    stats = {
+        "num_nodes": num_nodes,
+        "num_edges": num_edges,
+        "density": density,
+        "avg_in_degree": avg_in_degree,
+        "avg_out_degree": avg_out_degree,
+        "num_strong_components": num_strong_components,
+        "num_weak_components": num_weak_components,
+        "largest_wcc_size": largest_wcc_size,
+        "reciprocity": reciprocity,
+        "transitivity": transitivity,
+        "avg_clusterring": avg_clusterring
+    }
+
+    return stats
+
+
+
 
 
