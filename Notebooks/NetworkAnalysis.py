@@ -1,8 +1,19 @@
 import pandas as pd
 import networkx as nx
 
-fJsonName = "cleanComments.json"
-df = pd.read_json("cleanComments.json")
+def loadData():
+    df = pd.read_json("cleanComments.json")
+
+    return df
+
+def cleanNetworkData():
+    # removing deleted or null rows of data 
+    df = df.dropna(subset=["author", "comment_id", "parent_id", "body", "post_id"])
+    df = df[df["author"] != "[deleted]"]
+    df = df[df["author"] != "[removed]"]
+
+    return df
+
 
 # building normal reply graph
 replyGraph = nx.DiGraph()
