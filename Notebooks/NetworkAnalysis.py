@@ -1,5 +1,8 @@
 import pandas as pd
 import networkx as nx
+import community 
+import csv 
+from collections import Counter
 
 def loadData():
     df = pd.read_json("cleanComments.json")
@@ -20,35 +23,17 @@ def buildNetwork(df):
 
     # building normal reply graph
     replyGraph = nx.DiGraph()
-    # get dictionary mapping threads to the authors that created them 
-    threadToAuthor = dict(df[df["is_submitted"] == True].groupby("thread_id")["author"].first())
-    idToAuthor = dict(zip(df["comment_id"], df["author"]))
 
-    # getting the number of threads is submitted by each author
-    thread_counts = pd.Series(threadToAuthor).value_counts().to_dict()
-
-    # looping through unique authors and adding a node for them
-    # incl. count of threads submitted by the author to analyse how involved they are
-    for user in df["author"].unique():
-        replyGraph.add_node(user, numThreads=thread_counts.get(user, 0))
+    # changed to: loop through all users incl. parent_author to add nodes
+    all_users = set(df["author"]).union(set(df["parent_author"]))
+    for user in all_users:
+        replyGraph.add_node(user)
 
     # iterate through each row
     for _, row in df.iterrows():
         # hold data we need
         user = row["author"]
-        comment_id = row["comment_id"]
-        parent_id = row["parent_id"]
-        subreddit = row["subreddit"]
-        body = row["body"]
-        thread_id = row["post_id"]
-        score = row["score"]
-
-        # check if comment is replying to original post or another user
-        if parent_id == "t3_" + thread_id:
-            parent_user = threadToAuthor.get(thread_id)
-        else:
-            parent_comment_id = parent_id.replace("t1_", "")
-            parent_user = idToAuthor.get(parent_comment_id)
+        parent_user = row['parent_author']
         
         # check that the parent user exists first 
         if parent_user:
@@ -57,9 +42,9 @@ def buildNetwork(df):
                 # check if edge already exists
                 if(replyGraph.has_edge(user, parent_user)):
                     # add weight of how many times the user has replied to the same author
-                    replyGraph[user][parent_user]["numReplies"] += 1
+                    replyGraph[user][parent_user]["weight"] += 1
                 else:
-                    replyGraph.add_edge(user, parent_user, numReplies=1)
+                    replyGraph.add_edge(user, parent_user, weight=1)
     
     return replyGraph
 
@@ -71,8 +56,8 @@ def calcNetworkStats(replyGraph):
 
     density = nx.density(replyGraph)
     # both the same value
-    avg_in_degree = num_edges / num_nodes 
-    avg_out_degree = num_edges / num_nodes
+    avg_in_degree = num_edges / num_nodes if num_nodes > 0 else 0
+    avg_out_degree = num_edges / num_nodes if num_nodes > 0 else 0
 
     num_strong_components = len(list(nx.strongly_connected_components(replyGraph)))
     num_weak_components = len(list(nx.weakly_connected_components(replyGraph)))
@@ -84,12 +69,13 @@ def calcNetworkStats(replyGraph):
         largest_wcc_size = len(largest_wcc)
     else:
         largest_wcc_size = 0
+    
+    # needed to get avg clusterring and transitivity
+    undir_replyGraph = replyGraph.to_undirected()
 
     reciprocity = nx.reciprocity(replyGraph)
-    transitivity = nx.transitivity(replyGraph)
+    transitivity = nx.transitivity(undir_replyGraph)
 
-    # needed to get avg clusterring
-    undir_replyGraph = replyGraph.to_undirected()
     avg_clusterring = nx.average_clustering(undir_replyGraph)
 
     stats = {
@@ -106,10 +92,17 @@ def calcNetworkStats(replyGraph):
         "avg_clusterring": avg_clusterring
     }
 
+    dfstats = pd.DataFrame([stats])
+    dfstats.to_csv("network_stats.csv", index=False)
+
     # write into graph 
     nx.write_graphml(replyGraph, "replyGraph.graphml")
+    return dfstats #returning csv file of graphml stats
 
-def calcCentrality(replyGraph):
+# replygraph = graphml file 
+def calcCentrality(fileName):
+
+    replyGraph = nx.readwrite.read_graphml(fileName)
 
     # in and ouit degree centrality
     in_degree_cent = nx.in_degree_centrality(replyGraph)
@@ -125,7 +118,7 @@ def calcCentrality(replyGraph):
     # added base value of 1 
     katz_centrality = nx.katz_centrality_numpy(replyGraph, beta=1.0)
 
-    centrality_data = {
+    centrality_scores = {
         "in_degree_cent": in_degree_cent,
         "out_degree_cent": out_degree_cent,
         "betweenness_centrality": betweenness_centrality,
@@ -133,7 +126,52 @@ def calcCentrality(replyGraph):
         "katz_centrality": katz_centrality
     }
 
-    return centrality_data
+    dfcentrality_scores = pd.DataFrame([centrality_scores])
+    dfcentrality_scores.to_csv("centrality_scores.csv", index=False)
+
+    return dfcentrality_scores
+
+def detectCommunities(fileName):
+    replyGraph = nx.readwrite.read_graphml(fileName)
+    # make graph undirected
+    modGraph = nx.to_undirected(replyGraph)
+
+    # louvain 
+    louvain_comms = community.best_partition(modGraph)
+    modularity_score = community.modularity(louvain_comms, modGraph)
+
+    community_sizes = []
+    # assign louvain comm for each node
+    for node, comm in louvain_comms.items():
+        replyGraph.nodes[node]["community"] = comm
+    
+    dfcomm_assignments = pd.DataFrame([
+        {"user": node, "community": comm}
+        for node, comm in louvain_comms.items()
+    ])
+    
+    # get size of the dif communities
+    community_sizes = Counter(louvain_comms.values())
+
+    # save communities and their sizes to a df
+    dfcomms = pd.DataFrame([
+        {"community": comm, "size": size}
+        for comm, size in community_sizes.items()
+    ])
+    # save modularity score and num of communities to a separate df
+    dfstats = pd.DataFrame([{
+        "modularity_score": modularity_score,
+        "num_communities": len(community_sizes)
+    }])
+    
+    dfcomm_assignments.to_csv("community_assignments.csv", index=False)
+    dfcomms.to_csv("community_sizes.csv", index=False)
+    dfstats.to_csv("community_stats.csv", index=False)
+
+    return dfcomm_assignments, dfcomms, dfstats
+
+
+
 
 
 
