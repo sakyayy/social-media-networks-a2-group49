@@ -212,7 +212,19 @@ def visualiseNetwork(fileName, dfcentrality, dfcomm_size, dfcomm_assignments, df
     plt.title("katz centrality")
     plt.xlabel("type")
 
+    # community plots
+    # gtting top 10 communities
+    top_communities = dfcomm_size.sort_values("size", ascending=False).head(10)
+
+    plt.figure()
+    plt.bar(top_communities["community"].astype(str), top_communities["size"])
+    plt.title("top 10 Louvain community sizes")
+    plt.xlabel("community")
+    plt.ylabel("number of users")
     
+    plt.show()
+
+
 
 
 
