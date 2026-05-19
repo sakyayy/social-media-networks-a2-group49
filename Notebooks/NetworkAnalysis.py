@@ -3,6 +3,7 @@ import networkx as nx
 import community 
 import csv 
 from collections import Counter
+import matplotlib as plt
 
 def loadData():
     df = pd.read_json("cleanComments.json")
@@ -154,7 +155,7 @@ def detectCommunities(fileName):
     community_sizes = Counter(louvain_comms.values())
 
     # save communities and their sizes to a df
-    dfcomms = pd.DataFrame([
+    dfcomm_size = pd.DataFrame([
         {"community": comm, "size": size}
         for comm, size in community_sizes.items()
     ])
@@ -165,10 +166,55 @@ def detectCommunities(fileName):
     }])
     
     dfcomm_assignments.to_csv("community_assignments.csv", index=False)
-    dfcomms.to_csv("community_sizes.csv", index=False)
+    dfcomm_size.to_csv("community_sizes.csv", index=False)
     dfstats.to_csv("community_stats.csv", index=False)
 
-    return dfcomm_assignments, dfcomms, dfstats
+    return dfcomm_assignments, dfcomm_size, dfstats
+
+# plot basic graphs
+# using gephi for better ones tho
+def visualiseNetwork(fileName, dfcentrality, dfcomm_size, dfcomm_assignments, dfcomm_stats):
+    in_degree_cent = dfcentrality["in_degree_cent"]
+    out_degree_cent = dfcentrality["out_degree_cent"]
+    betweenness_cent = dfcentrality["betweenness_centrality"]
+    eigen_cent = dfcentrality["eigen_vector_cent"]
+    katz_cent = dfcentrality["katz_centrality"]
+
+    # centrality plots
+    # plotting all three in one for better comparison
+    plt.figure()
+    plt.subplot(1, 3, 1)
+    plt.hist(in_degree_cent)
+    plt.title("in-degree centrality")
+    plt.xlabel("type")
+
+    plt.subplot(1, 3, 2)
+    plt.hist(out_degree_cent)
+    plt.title("out-degree centrality")
+    plt.xlabel("type")
+
+    plt.subplot(1, 3, 3)
+    plt.hist(betweenness_cent)
+    plt.title("betweenness centrality")
+    plt.xlabel("type")
+
+
+    # katz and eigen vector
+    # same way of plotting ao its easier, will be using gephi or better visualisations tho
+    plt.figure()
+    plt.subplot(1, 2, 1)
+    plt.hist(eigen_cent)
+    plt.title("eigen vector centrality")
+    plt.xlabel("type")
+
+    plt.subplot(1, 2, 2)
+    plt.hist(katz_cent)
+    plt.title("katz centrality")
+    plt.xlabel("type")
+
+    
+
+
 
 
 
