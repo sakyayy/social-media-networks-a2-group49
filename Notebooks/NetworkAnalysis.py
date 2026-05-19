@@ -6,8 +6,7 @@ def loadData():
 
     return df
 
-def cleanNetworkData():
-    df = loadData()
+def cleanNetworkData(df):
     # removing deleted or null rows of data 
     df = df.dropna(subset=["author", "comment_id", "parent_id", "body", "post_id"])
     df = df[df["author"] != "[deleted]"]
@@ -15,8 +14,7 @@ def cleanNetworkData():
 
     return df
 
-def buildNetwork():
-    df = cleanNetworkData()
+def buildNetwork(df):
 
     # building normal reply graph
     replyGraph = nx.DiGraph()
@@ -63,8 +61,7 @@ def buildNetwork():
     
     return replyGraph
 
-def calcNetworkStats():
-    replyGraph = buildNetwork()
+def calcNetworkStats(replyGraph, df):
     
     # getting graph stats
     num_nodes = replyGraph.number_of_nodes()
