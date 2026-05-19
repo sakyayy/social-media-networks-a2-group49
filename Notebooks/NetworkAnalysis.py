@@ -46,18 +46,26 @@ for _, row in df.iterrows():
             else:
                 replyGraph.add_edge(user, parent_user, numReplies=1)
 
+# getting graph stats
+num_nodes = replyGraph.number_of_nodes()
+num_edges  = replyGraph.number_of_edges()
 
+density = nx.density(replyGraph)
+# both the same value
+avg_in_degree = num_edges / num_nodes
+avg_out_degree = num_edges / num_nodes
 
+num_strong_components = len(list(nx.strongly_connected_components(replyGraph)))
+num_weak_components = len(list(nx.weakly_connected_components(replyGraph)))
+# get the size of the largest weakly connected component 
+# to see how connected/disconnected the graph is
+largest_wcc = max(nx.weakly_connected_components(replyGraph), key=len)
+largest_wcc_size = len(largest_wcc)
 
+reciprocity = nx.reciprocity(replyGraph);
+transitivity = nx.transitivity(replyGraph)
 
-
-
-            
-
-
-    
-
-
-
+undir_replyGraph = replyGraph.to_undirected()
+# avg_clusterring = 
 
 
