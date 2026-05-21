@@ -6,7 +6,7 @@ SMNA assignment 2 code repository
 - Sangay Pelbar
 - Sakina Bayani
 
-**Project Summary:**
+## Project Summary
 
 This code collects, cleans, and analyses textual Reddit discussion data from a 2015 Reddit comments dataset. The investigation explores how online political discussion reflects opinions and discourse surrounding US foreign policy across multiple Reddit communities.
 
