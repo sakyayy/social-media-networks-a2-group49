@@ -1,9 +1,12 @@
 import pandas as pd
 import networkx as nx
-import community 
+import community.community_louvain as community
 import csv 
 from collections import Counter
-import matplotlib as plt
+import matplotlib.pyplot as plt
+
+mainFileName = "replyGraph.graphml"
+modFileName = "mod_replyGraph.graphml"
 
 def loadData():
     df = pd.read_json("cleanComments.json")
@@ -28,24 +31,38 @@ def buildNetwork(df):
     # changed to: loop through all users incl. parent_author to add nodes
     all_users = set(df["author"]).union(set(df["parent_author"]))
     for user in all_users:
-        replyGraph.add_node(user)
+        replyGraph.add_node(user, subreddits=set(), comment_count=0)
 
     # iterate through each row
     for _, row in df.iterrows():
         # hold data we need
         user = row["author"]
         parent_user = row['parent_author']
+        subreddit = row["subreddit"]
+
+        # update node attributes for user
+        replyGraph.nodes[user]["subreddits"].add(subreddit)
+        replyGraph.nodes[user]["comment_count"] += 1
+
+        # update for parent
+        if parent_user in replyGraph.nodes:
+            replyGraph.nodes[parent_user]["subreddits"].add(subreddit)
         
         # check that the parent user exists first 
         if parent_user:
             # checking that the parent user is not replying to themselvees coz we don't want loops 
             if parent_user != user:
                 # check if edge already exists
-                if(replyGraph.has_edge(user, parent_user)):
+                if replyGraph.has_edge(user, parent_user):
                     # add weight of how many times the user has replied to the same author
                     replyGraph[user][parent_user]["weight"] += 1
                 else:
                     replyGraph.add_edge(user, parent_user, weight=1)
+
+    for node in replyGraph.nodes:
+        subs = replyGraph.nodes[node]["subreddits"]
+        replyGraph.nodes[node]["subreddit"] = ", ".join(sorted(subs)) if subs else "unknown";
+        del replyGraph.nodes[node]["subreddits"]
     
     return replyGraph
 
@@ -97,7 +114,7 @@ def calcNetworkStats(replyGraph):
     dfstats.to_csv("network_stats.csv", index=False)
 
     # write into graph 
-    nx.write_graphml(replyGraph, "replyGraph.graphml")
+    nx.write_graphml(replyGraph, mainFileName)
     return dfstats #returning csv file of graphml stats
 
 # replygraph = graphml file 
@@ -113,21 +130,38 @@ def calcCentrality(fileName):
     betweenness_centrality = nx.betweenness_centrality(replyGraph)
 
     # eigen vector 
-    eigen_vector_cent = nx.eigenvector_centrality_numpy(replyGraph)
+    try:
+        eigen_vector_cent = nx.eigenvector_centrality_numpy(replyGraph)
+    except Exception:
+        try:
+            # max_iter set to 1000 to avoid errors
+            eigen_vector_cent = nx.eigenvector_centrality(replyGraph, max_iter=1000)
+        except Exception:
+            eigen_vector_cent = { user: 0 for user in replyGraph.nodes }
 
     # katz centrality
     # added base value of 1 
-    katz_centrality = nx.katz_centrality_numpy(replyGraph, beta=1.0)
+    try:
+        katz_centrality = nx.katz_centrality_numpy(replyGraph, beta=1.0)
+    except Exception:
+        try:
+            katz_centrality = nx.katz_centrality(replyGraph, beta=1.0, max_iter=1000)
+        except Exception:
+            katz_centrality = { user: 0 for user in replyGraph.nodes }
 
-    centrality_scores = {
-        "in_degree_cent": in_degree_cent,
-        "out_degree_cent": out_degree_cent,
-        "betweenness_centrality": betweenness_centrality,
-        "eigen_vector_cent": eigen_vector_cent,
-        "katz_centrality": katz_centrality
-    }
+    centrality_scores = []
 
-    dfcentrality_scores = pd.DataFrame([centrality_scores])
+    for user in replyGraph.nodes:
+        centrality_scores.append({
+            "user": user,
+            "in_degree_cent": in_degree_cent.get(user, 0),
+            "out_degree_cent": out_degree_cent.get(user, 0),
+            "betweenness_centrality": betweenness_centrality.get(user, 0),
+            "eigen_vector_cent": eigen_vector_cent.get(user, 0),
+            "katz_centrality": katz_centrality.get(user, 0)
+        })
+
+    dfcentrality_scores = pd.DataFrame(centrality_scores)
     dfcentrality_scores.to_csv("centrality_scores.csv", index=False)
 
     return dfcentrality_scores
@@ -147,7 +181,7 @@ def detectCommunities(fileName):
         replyGraph.nodes[node]["community"] = comm
     
     dfcomm_assignments = pd.DataFrame([
-        {"user": node, "community": comm}
+        {"user": node, "community": comm, "subreddit": replyGraph.nodes[node].get("subreddit", "unknown")}
         for node, comm in louvain_comms.items()
     ])
     
@@ -169,6 +203,8 @@ def detectCommunities(fileName):
     dfcomm_size.to_csv("community_sizes.csv", index=False)
     dfstats.to_csv("community_stats.csv", index=False)
 
+    nx.write_graphml(replyGraph, modFileName)
+
     return dfcomm_assignments, dfcomm_size, dfstats
 
 # plot basic graphs
@@ -186,17 +222,18 @@ def visualiseNetwork(fileName, dfcentrality, dfcomm_size, dfcomm_assignments, df
     plt.subplot(1, 3, 1)
     plt.hist(in_degree_cent)
     plt.title("in-degree centrality")
-    plt.xlabel("type")
+    plt.xlabel("centrality type")
 
     plt.subplot(1, 3, 2)
     plt.hist(out_degree_cent)
     plt.title("out-degree centrality")
-    plt.xlabel("type")
+    plt.xlabel("centrality type")
 
     plt.subplot(1, 3, 3)
     plt.hist(betweenness_cent)
     plt.title("betweenness centrality")
-    plt.xlabel("type")
+    plt.xlabel("centrality type")
+    plt.savefig("degreeCentrality.png")
 
 
     # katz and eigen vector
@@ -205,12 +242,13 @@ def visualiseNetwork(fileName, dfcentrality, dfcomm_size, dfcomm_assignments, df
     plt.subplot(1, 2, 1)
     plt.hist(eigen_cent)
     plt.title("eigen vector centrality")
-    plt.xlabel("type")
+    plt.xlabel("centrality type")
 
     plt.subplot(1, 2, 2)
     plt.hist(katz_cent)
     plt.title("katz centrality")
-    plt.xlabel("type")
+    plt.xlabel("centrality type")
+    plt.savefig("eigenKatzCentrality.png")
 
     # community plots
     # gtting top 10 communities
@@ -221,16 +259,18 @@ def visualiseNetwork(fileName, dfcentrality, dfcomm_size, dfcomm_assignments, df
     plt.title("top 10 Louvain community sizes")
     plt.xlabel("community")
     plt.ylabel("number of users")
+    plt.savefig("topCommunities.png")
     
     plt.show()
 
+def main():
+    df = loadData()
+    df = cleanNetworkData(df)
+    G = buildNetwork(df)
+    stats = calcNetworkStats(G)
+    centrality = calcCentrality(mainFileName)
+    comms, comm_size, comm_stats = detectCommunities(mainFileName)
+    visualiseNetwork(modFileName, centrality, comm_size, comms, comm_stats)
 
-
-
-
-
-
-
-
-
-
+if __name__ == "__main__":
+    main()
