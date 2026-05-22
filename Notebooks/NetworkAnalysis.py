@@ -209,7 +209,7 @@ def detectCommunities(fileName):
 
 # plot basic graphs
 # using gephi for better ones tho
-def visualiseNetwork(fileName, dfcentrality, dfcomm_size, dfcomm_assignments, dfcomm_stats):
+def visualiseNetwork(dfcentrality, dfcomm_size, dfcomm_assignments):
     in_degree_cent = dfcentrality["in_degree_cent"]
     out_degree_cent = dfcentrality["out_degree_cent"]
     betweenness_cent = dfcentrality["betweenness_centrality"]
@@ -219,21 +219,25 @@ def visualiseNetwork(fileName, dfcentrality, dfcomm_size, dfcomm_assignments, df
     # centrality plots
     # plotting all three in one for better comparison
     plt.figure()
-    plt.subplot(1, 3, 1)
     plt.hist(in_degree_cent)
     plt.title("in-degree centrality")
-    plt.xlabel("centrality type")
+    plt.xlabel("centrality score")
+    plt.ylabel("number of users")
+    plt.savefig("in_degreeCentrality.png")
 
-    plt.subplot(1, 3, 2)
+    plt.figure()
     plt.hist(out_degree_cent)
     plt.title("out-degree centrality")
-    plt.xlabel("centrality type")
+    plt.xlabel("centrality score")
+    plt.ylabel("number of users")
+    plt.savefig("out_degreeCentrality.png")
 
-    plt.subplot(1, 3, 3)
+    plt.figure()
     plt.hist(betweenness_cent)
     plt.title("betweenness centrality")
-    plt.xlabel("centrality type")
-    plt.savefig("degreeCentrality.png")
+    plt.xlabel("centrality score")
+    plt.ylabel("number of users")
+    plt.savefig("betweennes_degreeCentrality.png")
 
 
     # katz and eigen vector
@@ -242,12 +246,14 @@ def visualiseNetwork(fileName, dfcentrality, dfcomm_size, dfcomm_assignments, df
     plt.subplot(1, 2, 1)
     plt.hist(eigen_cent)
     plt.title("eigen vector centrality")
-    plt.xlabel("centrality type")
+    plt.xlabel("centrality score")
+    plt.ylabel("number of users")
 
     plt.subplot(1, 2, 2)
     plt.hist(katz_cent)
     plt.title("katz centrality")
-    plt.xlabel("centrality type")
+    plt.xlabel("centrality score")
+    plt.ylabel("number of users")
     plt.savefig("eigenKatzCentrality.png")
 
     # community plots
@@ -260,6 +266,71 @@ def visualiseNetwork(fileName, dfcentrality, dfcomm_size, dfcomm_assignments, df
     plt.xlabel("community")
     plt.ylabel("number of users")
     plt.savefig("topCommunities.png")
+
+    # top 10 in degree
+    top_in = dfcentrality.sort_values("in_degree_cent", ascending=False).head(10)
+
+    plt.figure()
+    plt.bar(top_in["user"], top_in["in_degree_cent"])
+    plt.xticks(rotation=45, ha="right")
+    plt.title("top 10 users by in-degree")
+    plt.xlabel("user")
+    plt.ylabel("centrality score")
+    plt.tight_layout()
+    plt.savefig("top10InDegree.png")
+
+    # top 10 betwenness
+    top_in = dfcentrality.sort_values("betweenness_centrality", ascending=False).head(10)
+
+    plt.figure()
+    plt.bar(top_in["user"], top_in["betweenness_centrality"])
+    plt.xticks(rotation=45, ha="right")
+    plt.title("top 10 users - betwenness")
+    plt.xlabel("user")
+    plt.ylabel("centrality score")
+    plt.tight_layout()
+    plt.savefig("top10Betweenness.png")
+
+    # top 10 katz
+    top_in = dfcentrality.sort_values("katz_centrality", ascending=False).head(10)
+
+    plt.figure()
+    plt.bar(top_in["user"], top_in["katz_centrality"])
+    plt.xticks(rotation=45, ha="right")
+    plt.title("top 10 users - katz centrality")
+    plt.xlabel("user")
+    plt.ylabel("centrality score")
+    plt.tight_layout()
+    plt.savefig("top10Katz.png")
+
+    # bar chart for subreddits and community comparioson
+    comm_subreddits = (
+        dfcomm_assignments.groupby(["community", "subreddit"]).size().reset_index(name="count")
+    )
+
+    top_comm_ids = (
+        dfcomm_size.sort_values("size", ascending=False).head(5)["community"]
+    )
+
+    comm_subreddits = comm_subreddits[comm_subreddits["community"].isin(top_comm_ids)]
+
+    dfpivot = comm_subreddits.pivot(
+        index="community",
+        columns="subreddit",
+        values="count"
+    ).fillna(0)
+
+    dfpivot.plot(
+        kind="bar",
+        stacked=True, 
+        figsize=(10, 6)
+    )
+
+    plt.title("subreddit composition of top communities")
+    plt.xlabel("Community")
+    plt.ylabel("number of users")
+    plt.tight_layout()
+    plt.savefig("commSubredditComposition.png")
     
     plt.show()
 
@@ -270,7 +341,7 @@ def main():
     stats = calcNetworkStats(G)
     centrality = calcCentrality(mainFileName)
     comms, comm_size, comm_stats = detectCommunities(mainFileName)
-    visualiseNetwork(modFileName, centrality, comm_size, comms, comm_stats)
+    visualiseNetwork(centrality, comm_size, comms)
 
 if __name__ == "__main__":
     main()

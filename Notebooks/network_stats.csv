@@ -1,0 +1,2 @@
+num_nodes,num_edges,density,avg_in_degree,avg_out_degree,num_strong_components,num_weak_components,largest_wcc_size,reciprocity,transitivity,avg_clusterring
+1343,1499,0.0008317122619577364,1.1161578555472822,1.1161578555472822,1030,227,712,0.4109406270847232,0.0294811320754717,0.01865098484169046
