@@ -38,11 +38,18 @@ The project uses the publicly available 2015 Reddit comments dataset in `.bz2` f
 - json
 - bz2
 - networkx
+- python-louvain
 
 Install required packages using:
 
 ```bash
-pip install pandas nltk matplotlib networkx
+pip install pandas nltk matplotlib networkx python-louvain
 ```
+
+## Running the files
+1. DataCollection.ipynb
+2. DataPreProcessing.ipynb
+3. NetworkAnalysis.py
+    - python NetworkAnalysis.py
 
 

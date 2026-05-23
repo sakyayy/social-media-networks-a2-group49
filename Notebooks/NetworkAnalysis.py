@@ -1,7 +1,6 @@
 import pandas as pd
 import networkx as nx
 import community.community_louvain as community
-import csv 
 from collections import Counter
 import matplotlib.pyplot as plt
 
