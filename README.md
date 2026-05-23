@@ -21,6 +21,7 @@ The data collection stage extracted:
 
 ## Project Structure
 
+```text
 social-media-networks-a2-group49/
 │
 ├── Notebooks/
@@ -43,6 +44,7 @@ social-media-networks-a2-group49/
 │
 ├── README.md
 ├── .gitignore
+```
 
 ## Data Source
 
